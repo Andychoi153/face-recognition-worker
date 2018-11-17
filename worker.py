@@ -110,6 +110,8 @@ class FaceRecognitionWorker:
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
+
+
         ##
         if len(faces):
             faceROI = frame_gray[y:y + h, x:x + w]
@@ -132,9 +134,10 @@ class FaceRecognitionWorker:
                                  'sol': {'name': self.db.ix[inx][1],
                                          'age': str(self.db.ix[inx][2])}
                                  },
-                        'time_stamp': time_stamp
+                        'time_stamp': time_stamp,
+                        'db_image': self.refImgs[inx]
                         }
-                requests.post('http://127.0.0.1:5000/create_transaction_by_contract', json=data)
+                requests.post('http://127.0.0.1:5000/send_detect_data', json=data)
                 log.debug(json.dumps(data))
                 # 인식 성공했을 경우 1초 delay
                 # time.sleep(1)
