@@ -85,8 +85,12 @@ class FaceRecognitionWorker:
             if not data:
                 break
 
-            # write bytes on file
+        # write bytes on file
         frame = cv2.imdecode(np.frombuffer(self.data, np.uint8), -1)
+
+        # send API server image bytes
+        requests.post('http://127.0.0.1:5000/image_packet', data=self.data)
+
         log.debug(frame.shape)
         self.data = b''
 
