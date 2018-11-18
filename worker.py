@@ -89,7 +89,10 @@ class FaceRecognitionWorker:
         frame = cv2.imdecode(np.frombuffer(self.data, np.uint8), -1)
 
         # send API server image bytes
-        requests.post('http://127.0.0.1:5000/image_packet', data=self.data)
+        data = {'req_addr': req_name,
+                'image_packet': self.data}
+        requests.post('http://127.0.0.1:5000/image_packet', json=data)
+        log.debug('send image packet')
 
         log.debug(frame.shape)
         self.data = b''
@@ -157,8 +160,8 @@ class FaceRecognitionWorker:
             except Exception as e:
                 log.debug(str(e))
                 log.debug('pass')
-                s.close()
-                break
+                continue
+        # s.close()
 
             # self.inloop_Match(self, requester_socket, requester_name)
 
