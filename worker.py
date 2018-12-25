@@ -174,10 +174,10 @@ class FaceRecognitionWorker:
         p1 = multiprocessing.Process(target=self.main, args=(HOST, PORT, 'REQUESTER1',))
 
         # socket from requester B
-        # p2 = multiprocessing.Process(target=self.main, args=(HOST, PORT+1, 'REQUESTER2', ))
+        p2 = multiprocessing.Process(target=self.main, args=(HOST, PORT + 1, 'REQUESTER2', ))
 
         p1.start()
-        # p2.start()
+        p2.start()
 
 
 if __name__ == "__main__":
