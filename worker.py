@@ -6,6 +6,10 @@ import pandas as pd
 import socket
 import multiprocessing
 import time
+import io
+import os
+
+from PIL import Image
 
 from FaceRecognitionWorker.log import log
 
@@ -29,12 +33,14 @@ class FaceRecognitionWorker:
         # TODO: index 값 저장! index 기반으로 유저 판단 -> 나중에 내뱉는 index 값에서 판단할 것!
 
         self.refImgs = []
+        self.refImgs_for_send = []
         self.refVecs = []
         self.data = b''
         for line in lines:
             temp = cv2.imread(line)
 
             self.refImgs.append(temp)
+            self.refImgs_for_send.append('img/'+line.split('/')[-1])
 
             temp = cv2.cvtColor(temp, cv2.COLOR_RGB2GRAY)
             faces = self.faceCascade.detectMultiScale(
@@ -68,7 +74,7 @@ class FaceRecognitionWorker:
         index = np.argmin(l2_Dists)
         return index, l2_Dists[index]
 
-    def inloop_recieveFile(self, socket, addr, req_name):
+    def inloop_recieveFile(self, socket, addr, req_name, cnt):
         # Send Ready Signal
         socket.sendall('Ready'.encode())
 
@@ -85,12 +91,19 @@ class FaceRecognitionWorker:
             if not data:
                 break
 
+        image = Image.open(io.BytesIO(self.data))
+        img_name = req_name+ str(cnt)
+        file_dir = '/home/haze/다운로드/apache-tomcat-7.0.92/webapps/HAZE/img/'+ img_name + '.jpg'
+        image.save(file_dir, "JPEG")
+
+
         # write bytes on file
         frame = cv2.imdecode(np.frombuffer(self.data, np.uint8), -1)
 
         # send API server image bytes
         data = {'req_addr': req_name,
-                'image_packet': self.data}
+                'image_packet': 'img/' + img_name + '.jpg'}
+        log.debug(data)
         requests.post('http://127.0.0.1:5000/image_packet', json=data)
         log.debug('send image packet')
 
@@ -128,7 +141,7 @@ class FaceRecognitionWorker:
             log.debug("{}: {}".format(inx, minval))
             log.debug("{} : {} : {}".format(*self.db.ix[inx]))
 
-            if minval < 0.9:
+            if minval < 1:
                 # status 변경 기준으로 가정
                 log.debug(type(cnnOut))
                 log.debug(type(addr))
@@ -138,10 +151,13 @@ class FaceRecognitionWorker:
                                          'age': str(self.db.ix[inx][2])}
                                  },
                         'time_stamp': time_stamp,
-                        'db_image': self.refImgs[inx]
+                        'db_image': self.refImgs_for_send[inx]
                         }
-                requests.post('http://127.0.0.1:5000/send_detect_data', json=data)
-                log.debug(json.dumps(data))
+                log.debug(data)
+                response = requests.post('http://127.0.0.1:5000/send_detect_data', json=data)
+                log.debug('send detected image')
+                log.debug(response.json())
+                # log.debug(json.dumps(data))
                 # 인식 성공했을 경우 1초 delay
                 # time.sleep(1)
 
@@ -150,16 +166,20 @@ class FaceRecognitionWorker:
         s.bind((HOST, PORT))
         s.listen(5)
 
+        cnt = 0
         while True:
 
             try:
+                cnt = cnt +1
                 requester_socket = s.accept()
                 log.debug(requester_socket)
-                self.inloop_recieveFile(*requester_socket, requester_name)
+                self.inloop_recieveFile(*requester_socket, requester_name, cnt)
 
             except Exception as e:
                 log.debug(str(e))
                 log.debug('pass')
+                # s.close()
+
                 continue
         # s.close()
 
