@@ -13,8 +13,11 @@ from PIL import Image
 
 from FaceRecognitionWorker.log import log
 
-from cnnp import cnnpRun
+# from cnnp import cnnpRun
 
+# from alexnet import alexnet_v2
+
+from alex_net import features_alex_net
 
 HOST = ""
 PORT = 9999
@@ -42,7 +45,7 @@ class FaceRecognitionWorker:
             self.refImgs.append(temp)
             self.refImgs_for_send.append('img/'+line.split('/')[-1])
 
-            temp = cv2.cvtColor(temp, cv2.COLOR_RGB2GRAY)
+            #temp = cv2.cvtColor(temp, cv2.COLOR_RGB2GRAY)
             faces = self.faceCascade.detectMultiScale(
                 temp,
                 scaleFactor=1.3,
@@ -59,10 +62,30 @@ class FaceRecognitionWorker:
                 (x, y, w, h) = faces[0]
                 faceROI = temp[y:y + h, x:x + w]
                 faceROI = cv2.resize(faceROI, (128, 128))
-                faceROI = cv2.equalizeHist(faceROI)
+                #faceROI = cv2.equalizeHist(faceROI)
             
                 log.debug(faceROI)
-                cnnOut = cnnpRun(faceROI)
+                # cnnOut = cnnpRun(faceROI)
+                # cnnOut = alexnet_v2([[faceROI.tolist()]])
+
+                alex_net_path = os.path.join("tf_models/bvlc_alexnet.npy")
+
+                alex_net = np.load(alex_net_path, encoding='latin1').item()
+
+
+
+                conv1, conv2, conv3, conv4, conv5 = features_alex_net([faceROI], alex_net)
+
+                # apply max pooling per channel
+                # m1.. m5 are layer level image feature descriptors
+                m1 = np.amax(conv1, axis=(1, 2))
+                m2 = np.amax(conv2, axis=(1, 2))
+                m3 = np.amax(conv3, axis=(1, 2))
+                m4 = np.amax(conv4, axis=(1, 2))
+                m5 = np.amax(conv5, axis=(1, 2))
+
+                cnnOut = np.concatenate((m1, m2, m3, m4, m5), axis=1)
+
                 log.debug(cnnOut)
                 self.refVecs.append(cnnOut)
 
